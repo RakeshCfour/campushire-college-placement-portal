@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | CampusHire</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg bg-dark navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="admin.html">Campus<span class="text-primary">Hire</span> Admin</a>
+        <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+                <li><button class="btn btn-outline-light btn-sm" onclick="logout()">Logout</button></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-5">
+    <h2 class="mb-4">Admin Dashboard</h2>
+    
+    <!-- Stats Row -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm h-100 border-0">
+                <div class="card-body py-4">
+                    <h1 class="display-4 fw-bold text-primary" id="adminTotalApps">0</h1>
+                    <p class="text-muted mb-0">Total Applications</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm h-100 border-0">
+                <div class="card-body py-4">
+                    <h1 class="display-4 fw-bold text-success" id="adminSelected">0</h1>
+                    <p class="text-muted mb-0">Selected Candidates</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Management -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">Application Management</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student</th>
+                            <th>CGPA</th>
+                            <th>Company</th>
+                            <th>Role</th>
+                            <th>Applied On</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminAppsList">
+                        <tr><td colspan="7" class="text-center py-4">Loading applications...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+    async function renderAdminDashboard() {
+        const apps = await fetchJSON('/api/applications/all');
+        if (!apps) return;
+        
+        document.getElementById('adminTotalApps').textContent = apps.length;
+        document.getElementById('adminSelected').textContent = apps.filter(a => a.status === 'SELECTED').length;
+        
+        const list = document.getElementById('adminAppsList');
+        if (apps.length === 0) {
+            list.innerHTML = '<tr><td colspan="7" class="text-center py-4">No applications found.</td></tr>';
+        } else {
+            list.innerHTML = apps.map(a => `
+                <tr>
+                    <td>
+                        <div class="fw-bold">${a.studentName}</div>
+                        <div class="small text-muted">${a.studentEmail}</div>
+                    </td>
+                    <td>${a.cgpa.toFixed(2)}</td>
+                    <td>${a.company}</td>
+                    <td>${a.role}</td>
+                    <td>${a.appliedOn}</td>
+                    <td><span class="badge ${getStatusBadgeClass(a.status)}">${a.status}</span></td>
+                    <td>
+                        <select class="form-select form-select-sm d-inline-block w-auto" onchange="updateStatus(${a.id}, this.value)">
+                            <option value="APPLIED" ${a.status==='APPLIED'?'selected':''}>Applied</option>
+                            <option value="SHORTLISTED" ${a.status==='SHORTLISTED'?'selected':''}>Shortlisted</option>
+                            <option value="SELECTED" ${a.status==='SELECTED'?'selected':''}>Selected</option>
+                            <option value="REJECTED" ${a.status==='REJECTED'?'selected':''}>Rejected</option>
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // Chart.js Experiment 13
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        const counts = {
+            'APPLIED': apps.filter(a=>a.status==='APPLIED').length,
+            'SHORTLISTED': apps.filter(a=>a.status==='SHORTLISTED').length,
+            'SELECTED': apps.filter(a=>a.status==='SELECTED').length,
+            'REJECTED': apps.filter(a=>a.status==='REJECTED').length
+        };
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Applied', 'Shortlisted', 'Selected', 'Rejected'],
+                datasets: [{
+                    label: 'Applications by Status',
+                    data: [counts['APPLIED'], counts['SHORTLISTED'], counts['SELECTED'], counts['REJECTED']],
+                    backgroundColor: ['#0d6efd', '#ffc107', '#198754', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+    }
+
+    async function updateStatus(appId, status) {
+        const res = await fetchJSON('/api/applications/updateStatus', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ applicationId: appId, status: status })
+        });
+        if(res && res.success) {
+            // alert('Status updated successfully');
+            // Optimistically just keep the page as is, it's bound.
+        } else {
+            alert('Failed to update status');
+        }
+    }
+    
+    function getStatusBadgeClass(status) {
+        switch(status) {
+            case 'APPLIED': return 'text-bg-primary';
+            case 'SHORTLISTED': return 'text-bg-warning';
+            case 'SELECTED': return 'text-bg-success';
+            case 'REJECTED': return 'text-bg-danger';
+            default: return 'text-bg-secondary';
+        }
+    }
+</script>
+</body>
+</html>

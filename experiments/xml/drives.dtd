@@ -1,0 +1,7 @@
+<!ELEMENT drives (drive+)>
+<!ELEMENT drive (company, role, minCgpa, location)>
+<!ATTLIST drive id CDATA #REQUIRED>
+<!ELEMENT company (#PCDATA)>
+<!ELEMENT role (#PCDATA)>
+<!ELEMENT minCgpa (#PCDATA)>
+<!ELEMENT location (#PCDATA)>

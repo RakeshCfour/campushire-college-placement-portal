@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE drives SYSTEM "drives.dtd">
+<drives xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="drives.xsd">
+    <drive id="1">
+        <company>TCS</company>
+        <role>Software Developer</role>
+        <minCgpa>7.0</minCgpa>
+        <location>Hyderabad</location>
+    </drive>
+    <drive id="2">
+        <company>Infosys</company>
+        <role>Systems Engineer</role>
+        <minCgpa>6.5</minCgpa>
+        <location>Pune</location>
+    </drive>
+</drives>
